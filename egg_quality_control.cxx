@@ -9,19 +9,22 @@ using namespace std;
 void binarizar(Mat src, Mat dst);
 int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta);
 void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada);
+void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam);
 vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &imagenCentros, vector<int> pixelesPorEtiqueta, int numEtiqueta);
 vector<Point> obtener4Vecinos(Point punto, int cols, int rows);
 bool pixelValido(Point punto, int cols, int rows);
-void separarHuevos(Mat image, Mat &huevo, Point centro);
+Rect separarHuevos(Mat image, Mat &huevo, Point centro);
+void clasificar(Mat &image, Rect r, Scalar s);
 
 int main(int argc, char** argv){
     // Declare variables
-    Mat src, crop, imageBin, image_dilate, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros;
+    Mat src, crop, imageBin, image_dilate, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo;
     Mat huevos[5];
     Point anchor = Point(-1, -1);
     int numEtiqueta;
-    vector<int> pixelesPorEtiqueta;
+    vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
     vector<Point> centros;
+    vector<Rect> rectHuevos;
     // Loads an image
     src = imread(argv[1], 1);
     if (src.empty()) {
@@ -63,7 +66,11 @@ int main(int argc, char** argv){
         huevos[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
     for (int i = 0, j=0; i < numEtiqueta && j<5; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
-            separarHuevos(image_dilate, huevos[j], centros[i]);
+            rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
+            // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
+            // pixelesPorEtiquetaHuevo.clear();
+            // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
+            // filtroTamano(huevos[j], pixelesPorEtiquetaHuevo, n, 0.15, etiquetasHuevo, huevos[j]);
             j++;
         }
     }
@@ -100,7 +107,7 @@ void binarizar(Mat src, Mat dst){
     end = src.end<Vec3b>();
     itb = dst.begin<Vec3b>();
     endb = dst.end<Vec3b>();
-    for (; it != end, itb != endb; ++it, ++itb) {
+    for (; it != end && itb != endb; ++it, ++itb) {
         if (!((*it)[2] < rUmbral && (*it)[1] > gUmbral)) {
             (*itb)[2] = 255;
             (*itb)[1] = 255;
@@ -163,6 +170,7 @@ int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta){
     for (int i = 0; i < numEtiqueta; i++) {
         cout << setw(6) << i + 1 << setw(8) << pixelesPorEtiqueta[i] << endl;
     }
+    cout << endl;
     return numEtiqueta;
 }
 
@@ -187,6 +195,34 @@ void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, f
                 pixelesPorEtiqueta[etiquetas.at<int>(Point(i, j)) - 1] = 0;
         }
     }
+    
+    cout << "Después de filtrar por tamaño las regiones, las restastes son:" << endl;
+    cout << "Region Pixeles" << endl;
+    for (int i = 0; i < numEtiqueta; i++){
+        if (pixelesPorEtiqueta[i] != 0)
+            cout << setw(6) << i + 1 << setw(8) << pixelesPorEtiqueta[i] << endl;
+    }
+    cout << endl;
+}
+
+void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam){
+    int regionMasGrande = 0;
+    for (int i = 0; i < numEtiqueta; i++){
+        if (pixelesPorEtiqueta[i] > regionMasGrande)
+            regionMasGrande = pixelesPorEtiqueta[i];
+    }
+    cout << endl;
+    cout << "Tamaño región más grande: " << regionMasGrande << endl;
+    int filtro=porcentaje*regionMasGrande;
+    cout << porcentaje * 100 << "% del tamaño región más grande: " << filtro << endl;
+    for (int i = 0; i < image.cols; i++) {
+        for (int j = 0; j < image.rows; j++) {
+            if (pixelesPorEtiqueta[etiquetas.at<int>(Point(i, j)) - 1] >= filtro) {
+                imagenFiltradaTam.at<uchar>(Point(i, j)) = 255;
+            } else
+                pixelesPorEtiqueta[etiquetas.at<int>(Point(i, j)) - 1] = 0;
+        }
+    }
     cout << endl;
     cout << "Después de filtrar por tamaño las regiones, las restastes son:" << endl;
     cout << "Region Pixeles" << endl;
@@ -194,6 +230,7 @@ void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, f
         if (pixelesPorEtiqueta[i] != 0)
             cout << setw(6) << i + 1 << setw(8) << pixelesPorEtiqueta[i] << endl;
     }
+    cout << endl;
 }
 
 vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &imagenCentros, vector<int> pixelesPorEtiqueta, int numEtiqueta){
@@ -237,7 +274,6 @@ vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &i
         }
     }
 
-    cout << endl;
     cout << "Centros de las regiones:" << endl;
     cout << "       X      Y" << endl;
     for (int i = 0; i < numEtiqueta; i++) {
@@ -248,23 +284,26 @@ vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &i
             imagenCentros.at<uchar>(centros[i]) = 0;
         }
     }
+    cout<<endl;
     return centros;
 }
 
-void separarHuevos(Mat image, Mat &huevo, Point centro){
-    Point left_up (centro.x-103, centro.y-80);
-    cout<<centro<<endl;
+Rect separarHuevos(Mat image, Mat &huevo, Point centro){
+    Point left_up (centro.x-110, centro.y-80);
     if(left_up.x<0)
         left_up.x=0;
     if(left_up.y<0)
         left_up.y=0;
-    Point right_down (centro.x+90, centro.y+80);
-    if(right_down.x>=image.rows)
-        right_down.x=image.rows-1;
-    if(right_down.y>=image.cols)
-        right_down.y=image.cols-1;
-    cout<<" "<<left_up<<" "<<right_down<<endl;
-    huevo = image(Rect(left_up, right_down));
+    Point right_down (centro.x+110, centro.y+80);
+    if(right_down.x>=image.cols)
+        right_down.x=image.cols-1;
+    if(right_down.y>=image.rows)
+        right_down.y=image.rows-1;
+    Rect rect(left_up, right_down);
+    cout<<centro<<endl;
+    cout<<" up: "<<left_up<<" down: "<<right_down<<endl<<endl;
+    huevo = image(rect);
+    return rect;
 }
 
 vector<Point> obtener4Vecinos(Point punto, int cols, int rows){
@@ -281,4 +320,9 @@ vector<Point> obtener4Vecinos(Point punto, int cols, int rows){
 
 bool pixelValido(Point punto, int cols, int rows){
     return (punto.x >= 0 && punto.x < cols) && (punto.y >= 0 && punto.y < rows);
+}
+
+void clasificar(Mat &image, Rect r, Scalar s){
+    rectangle(image, r, s, 5, 8, 0);
+    //s = Scalar(b,g,r)
 }
