@@ -17,6 +17,8 @@ bool pixelValido(Point punto, int cols, int rows);
 Rect separarHuevos(Mat image, Mat &huevo, Point centro);
 void clasificar(Mat &image, Rect r, Scalar s);
 
+void treshGradiente(Mat src, Mat dst);
+
 int main(int argc, char** argv){
     // Declare variables
     Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo;
@@ -33,7 +35,9 @@ int main(int argc, char** argv){
         return -1;
     }
     // recortar imagen para eliminar las partes no deseadas al tomar la foto
-    crop = src(Rect(80, 490, 760, 330));
+    //crop = src(Rect(80, 490, 760, 330));
+    crop = src(Rect(70, 470, 780, 360));
+
     imageBin = Mat::zeros(crop.size(), CV_8UC1);
     imageSeg = Mat::zeros(crop.size(), CV_8UC3);
     // se binariza la imagen para separar los huevos del fondo
@@ -53,7 +57,11 @@ int main(int argc, char** argv){
     morphologyEx(imageSeg, gradienteMorfologico, MORPH_GRADIENT, kernel);
 
 
+    Mat gradienteBinarizado = Mat::zeros(gradienteMorfologico.size(), CV_8UC1);
+    treshGradiente (gradienteMorfologico, gradienteBinarizado);
 
+    Mat gradienteGrises = Mat::zeros(gradienteMorfologico.size(), CV_8UC1);
+    cvtColor (gradienteMorfologico, gradienteGrises, COLOR_RGB2GRAY);
 
 
 
@@ -83,7 +91,8 @@ int main(int argc, char** argv){
         huevos[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
     for (int i = 0, j=0; i < numEtiqueta && j<5; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
-            rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
+            //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
+            rectHuevos.push_back (separarHuevos(gradienteGrises, huevos[j], centros[i]));
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
             // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
@@ -97,6 +106,9 @@ int main(int argc, char** argv){
     imwrite(basename + "_segmentada.png", imageSeg);
 
     imwrite(basename + "_gradiente_morfologico.png", gradienteMorfologico);
+    imwrite(basename + "_gradiente_binarizado.png", gradienteBinarizado);
+imwrite(basename + "_gradiente_grises.png", gradienteGrises);
+
 
     imwrite(basename + "_dilate.png", image_dilate);
     imwrite(basename + "_dilate_color.png", image_dilate_color);
@@ -155,6 +167,40 @@ void binarizar(Mat src, Mat dst){
             (*itb)[0] = 0;
         }
     } // rof
+}
+
+void treshGradiente(Mat src, Mat dst){
+    int rHst[256] = { 0 }, gHst[256] = { 0 }, bHst[256] = { 0 };
+    // Fill color channel images
+    MatIterator_<Vec3b> it, end, itb, endb, itu, endu;
+    it = src.begin<Vec3b>();
+    end = src.end<Vec3b>();
+    for (; it != end; ++it) {
+        rHst[(*it)[2]]++;
+        gHst[(*it)[1]]++;
+        bHst[(*it)[0]]++;
+    } // rof
+
+    int rUmbral = 16;
+    int gUmbral = 16;
+    int bUmbral = 16;
+
+    it = src.begin<Vec3b>();
+    end = src.end<Vec3b>();
+    itb = dst.begin<Vec3b>();
+    endb = dst.end<Vec3b>();
+    for (; it != end && itb != endb; ++it, ++itb) {
+        if ( (*it)[2] > rUmbral && (*it)[1] > gUmbral && (*it)[0] > bUmbral) {
+            (*itb)[2] = 255;
+            (*itb)[1] = 255;
+            (*itb)[0] = 255;
+        }
+        else{
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+    }
 }
 
 

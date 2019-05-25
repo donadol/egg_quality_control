@@ -1,0 +1,166 @@
+HUEVO NO ROTO 1:
+
+For orientation 0:
+Inertia: 1.21558
+Correlation: 0.411217
+Energy: 0.882021
+Entropy: 0.594149
+Homogeneity: 0.963185
+
+For orientation 1:
+Inertia: 0.984631
+Correlation: 0.487274
+Energy: 0.886418
+Entropy: 0.578802
+Homogeneity: 0.967158
+
+For orientation 2:
+Inertia: 1.05411
+Correlation: 0.464076
+Energy: 0.88241
+Entropy: 0.590133
+Homogeneity: 0.963311
+
+For orientation 3:
+Inertia: 0.603538
+Correlation: 0.612564
+Energy: 0.898521
+Entropy: 0.513006
+Homogeneity: 0.979642
+
+=================================
+
+HUEVO NO ROTO 2:
+
+For orientation 0:
+Inertia: 1.12587
+Correlation: 0.43965
+Energy: 0.889515
+Entropy: 0.564356
+Homogeneity: 0.966061
+
+For orientation 1:
+Inertia: 0.952909
+Correlation: 0.495379
+Energy: 0.89344
+Entropy: 0.548227
+Homogeneity: 0.969355
+
+For orientation 2:
+Inertia: 1.07982
+Correlation: 0.454356
+Energy: 0.889381
+Entropy: 0.562978
+Homogeneity: 0.965459
+
+For orientation 3:
+Inertia: 0.615998
+Correlation: 0.604968
+Energy: 0.904334
+Entropy: 0.483605
+Homogeneity: 0.981126
+
+
+=================================
+
+HUEVO ROTO 1:
+
+
+For orientation 0:
+Inertia: 1.1426
+Correlation: 0.437598
+Energy: 0.849819
+Entropy: 0.731833
+Homogeneity: 0.958924
+
+For orientation 1:
+Inertia: 0.993436
+Correlation: 0.494933
+Energy: 0.851084
+Entropy: 0.72492
+Homogeneity: 0.960321
+
+For orientation 2:
+Inertia: 1.09106
+Correlation: 0.457281
+Energy: 0.842608
+Entropy: 0.761204
+Homogeneity: 0.953739
+
+For orientation 3:
+Inertia: 0.553931
+Correlation: 0.664397
+Energy: 0.865923
+Entropy: 0.646962
+Homogeneity: 0.974636
+
+
+
+================================
+
+HUEVO ROTO 2:
+
+For orientation 0:
+Inertia: 1.14378
+Correlation: 0.43099
+Energy: 0.796034
+Entropy: 0.99767
+Homogeneity: 0.945987
+
+For orientation 1:
+Inertia: 0.987657
+Correlation: 0.47718
+Energy: 0.797468
+Entropy: 0.985883
+Homogeneity: 0.948948
+
+For orientation 2:
+Inertia: 1.13034
+Correlation: 0.434983
+Energy: 0.791417
+Entropy: 1.02416
+Homogeneity: 0.942268
+
+For orientation 3:
+Inertia: 0.721777
+Correlation: 0.556576
+Energy: 0.810775
+Entropy: 0.919777
+Homogeneity: 0.961492
+
+
+=================================
+
+
+HUEVO ROTO 3:
+
+For orientation 0:
+Inertia: 1.2691
+Correlation: 0.393524
+Energy: 0.805639
+Entropy: 0.924744
+Homogeneity: 0.948302
+
+For orientation 1:
+Inertia: 1.03947
+Correlation: 0.460486
+Energy: 0.809876
+Entropy: 0.907562
+Homogeneity: 0.951927
+
+For orientation 2:
+Inertia: 1.1119
+Correlation: 0.439056
+Energy: 0.804041
+Entropy: 0.9303
+Homogeneity: 0.946897
+
+For orientation 3:
+Inertia: 0.652358
+Correlation: 0.572881
+Energy: 0.827526
+Entropy: 0.812386
+Homogeneity: 0.968392
+
+
+
