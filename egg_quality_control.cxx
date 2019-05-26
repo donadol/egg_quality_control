@@ -2,6 +2,35 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 #include <opencv2/opencv.hpp>
+
+#include "itkImage.h"
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+#include "itkHistogramToTextureFeaturesFilter.h"
+#include "itkScalarImageToCooccurrenceMatrixFilter.h"
+#include "itkVectorContainer.h"
+#include "itkAddImageFilter.h"
+#include "itkMultiplyImageFilter.h"
+#include "itkRegionOfInterestImageFilter.h"
+#include "itkRescaleIntensityImageFilter.h"
+
+
+
+//definitions of used types
+typedef itk::Image<unsigned char, 2> InternalImageType;
+typedef itk::Image<unsigned char, 2> VisualizingImageType;
+typedef itk::Neighborhood<float, 2> NeighborhoodType;
+typedef itk::Statistics::ScalarImageToCooccurrenceMatrixFilter<InternalImageType> Image2CoOccuranceType;
+typedef Image2CoOccuranceType::HistogramType HistogramType;
+typedef itk::Statistics::HistogramToTextureFeaturesFilter<HistogramType> Hist2FeaturesType;
+typedef InternalImageType::OffsetType OffsetType;
+typedef itk::AddImageFilter <InternalImageType> AddImageFilterType;
+typedef itk::MultiplyImageFilter<InternalImageType> MultiplyImageFilterType;
+typedef itk::RescaleIntensityImageFilter< InternalImageType, InternalImageType > RescaleFilterType;
+typedef itk::RegionOfInterestImageFilter<InternalImageType,InternalImageType> roiType;
+typedef itk::ImageFileReader<InternalImageType> ReaderType;
+
+
 #define K_HIGH_R 241
 #define K_LOW_R 164
 #define K_HIGH_G 215
