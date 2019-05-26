@@ -2,12 +2,16 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 #include <opencv2/opencv.hpp>
+#include <math.h>
 #define K_HIGH_R 241
-#define K_LOW_R 164
+#define K_LOW_R 163
 #define K_HIGH_G 215
-#define K_LOW_G 143
+#define K_LOW_G 142
 #define K_HIGH_B 192
-#define K_LOW_B 122
+#define K_LOW_B 105
+#define K_HIGH_FORM 166477
+#define K_LOW_FORM 154733
+# define PI 3.14159265358979323846
 
 using namespace cv;
 using namespace std;
@@ -24,12 +28,14 @@ Rect separarHuevos(Mat image, Mat &huevo, Point centro);
 
 void treshGradiente(Mat src, Mat dst);
 vector<float> promedio(Mat image, Mat imagebw);
-void clasificar(Mat &image, Rect r, vector<float> prom, int i);
+void clasificar(Mat &image, Rect r, vector<float> prom, float numForma);
+int totalPixeles(Mat image, Mat imagebw);
+float numeroForma(Mat image, int pixeles);
 
 int main(int argc, char** argv){
     // Declare variables
     Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, image_opening_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
-    Mat huevos_color[5], huevos_bw[5];
+    Mat huevos_color[5], huevos_bw[5], huevos_dist[5];
     Point anchor = Point(-1, -1);
     int numEtiqueta, numEtiquetaFiltradas;
     vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
@@ -113,12 +119,14 @@ int main(int argc, char** argv){
     for (int i = 0; i < 5; i++){
         huevos_color[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
         huevos_bw[i]= Mat::zeros(image_dilate.size(), CV_8UC3);
+        huevos_dist[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
     }
     for (int i = 0, j=0; i < numEtiqueta && j<numEtiquetaFiltradas; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
             //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
             rectHuevos.push_back (separarHuevos(imageSeg, huevos_color[j], centros[i]));
             separarHuevos(image_dilate, huevos_bw[j], centros[i]);
+            separarHuevos(transDistancia, huevos_dist[j], centros[i]);
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
             // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
@@ -130,8 +138,11 @@ int main(int argc, char** argv){
     for(int i=0; i<numEtiquetaFiltradas; i++){
         aux.clear();
         aux = promedio(huevos_color[i], huevos_bw[i]);
-        cout<<"Huevo "<<i<<" R: "<<aux[2]<<" G: "<<aux[1]<<" B: "<<aux[0]<<endl;
-        clasificar(imagenClasificada, rectHuevos[i], aux,i);
+        cout<<"Huevo "<<i<<":"<<endl<<"R: "<<aux[2]<<" G: "<<aux[1]<<" B: "<<aux[0]<<endl;
+        cout<<"Cantidad pixeles: "<<totalPixeles(huevos_dist[i], huevos_bw[i])<<endl;
+        float nf =numeroForma(huevos_dist[i], totalPixeles(huevos_dist[i], huevos_bw[i]));
+        cout<<"Número de forma: "<<nf<<endl;
+        clasificar(imagenClasificada, rectHuevos[i], aux, nf);
     }
 
     imwrite(basename + "_crop.png", crop);
@@ -158,6 +169,7 @@ int main(int argc, char** argv){
     for(int i=0; i<5; ++i){
         imwrite(basename + "_huevo_gradiente_grises"+to_string(i)+".png", huevos_bw[i]);
         imwrite(basename + "_huevo_color"+to_string(i)+".png", huevos_color[i]);
+        imwrite(basename + "_huevo_distancias"+to_string(i)+".png", huevos_dist[i]);
     }
     return 0;
 }
@@ -548,14 +560,21 @@ bool pixelValido(Point punto, int cols, int rows){
     return (punto.x >= 0 && punto.x < cols) && (punto.y >= 0 && punto.y < rows);
 }
 
-void clasificar(Mat &image, Rect r, vector<float> prom, int i){
-    if((prom[2]<=K_HIGH_R && prom[2]>=K_LOW_R) && (prom[1]<=K_HIGH_G && prom[1]>=K_LOW_B) && (prom[0]<=K_HIGH_B && prom[0]>=K_LOW_B)){
-        cout<<"Huevo "<<i<<" pasa"<<endl;
-        rectangle(image, r, Scalar(0, 255, 0),5,8,0);
-    }
-    else{
-        cout<<"Huevo "<<i<<" no pasa"<<endl;
+void clasificar(Mat &image, Rect r, vector<float> prom, float numForma){
+    if(!((prom[2]<=K_HIGH_R && prom[2]>=K_LOW_R) && (prom[1]<=K_HIGH_G && prom[1]>=K_LOW_B) && (prom[0]<=K_HIGH_B && prom[0]>=K_LOW_B))){
+        cout<<"No pasa por color"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+    }
+    else if(!(numForma<=K_HIGH_FORM && numForma >= K_LOW_FORM)){
+        cout<<"No pasa por forma"<<endl;
+        rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+    }
+    // else if(grietas){
+        //rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+    // }
+    else{
+        cout<<"Pasa todos los parametros"<<endl;
+        rectangle(image, r, Scalar(0, 255, 0),5,8,0);
     }
     //rectangle(image, r, s, 5, 8, 0);
     //s = Scalar(b,g,r)
@@ -582,4 +601,31 @@ vector<float> promedio(Mat image, Mat imagebw){
     prom[1]=prom[1]/cont;
     prom[0]=prom[0]/cont;
     return prom;
+}
+
+int totalPixeles(Mat image, Mat imagebw){
+    int cont=0;
+    MatIterator_<Vec3b> it, end;
+    MatIterator_<uchar> itbw, endbw;
+    it = image.begin<Vec3b>();
+    end = image.end<Vec3b>();
+    itbw = imagebw.begin<uchar>();
+    endbw = imagebw.end<uchar>();
+    for (; it != end && itbw!=end; ++it, ++itbw){
+        if((*itbw)>0){
+            cont++;
+        }
+    }
+    return cont;
+}
+
+float numeroForma(Mat image, int pixeles){
+    int cont=0;
+    MatIterator_<uchar> it, end;
+    it = image.begin<uchar>();
+    end = image.end<uchar>();
+    for (; it != end; ++it){
+        cont+=(*it);
+    }
+    return (float)pow(pixeles,3)/(float)(9*PI*pow(cont-sqrt(0.5)/2*cont,2));
 }
