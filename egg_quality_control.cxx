@@ -27,7 +27,7 @@ void treshGradiente(Mat src, Mat dst);
 vector<float> promedio(Mat image);
 int main(int argc, char** argv){
     // Declare variables
-    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
+    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, image_opening_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
     Mat huevos_color[5], huevos_bw[5];
     Point anchor = Point(-1, -1);
     int numEtiqueta;
@@ -65,6 +65,11 @@ int main(int argc, char** argv){
     // se erosiona la imagen para eliminar el ruido fuera de los huevos
     image_erode = Mat::zeros(imageSeg.size(), CV_8UC3);
     erode(imageSeg, image_erode_color, Mat(), anchor, 1, 1, 1);
+
+
+    image_opening_color = Mat::zeros(imageSeg.size(), CV_8UC3);
+    dilate (image_erode_color, image_opening_color, Mat(), anchor, 1, 1, 1);
+
 
     //gradiente morfologico
     Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
@@ -145,6 +150,8 @@ int main(int argc, char** argv){
 
     imwrite(basename + "_erode.png", image_erode);
     imwrite(basename + "_erode_color.png", image_erode_color);
+
+    imwrite(basename + "_opening.png", image_opening_color);
 
     imwrite(basename + "_regionesFiltradasPorTamaño.png", imagenFiltradaTam);imwrite(basename + "_regionesFiltradasPorTamañoColoreada.png", imagenFiltradaTamColoreada);
     imwrite(basename + "_transDistancia.png", transDistancia);
