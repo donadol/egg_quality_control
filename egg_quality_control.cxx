@@ -193,7 +193,7 @@ int main(int argc, char** argv){
     imwrite(basename + "_transDistancia.png", transDistancia);
     imwrite(basename + "_centros.png", imagenCentros);
     imwrite(basename + "_clasificados.png", imagenClasificada);
-    for(int i=0; i<5; ++i){
+    for(int i=0; i<numEtiquetaFiltradas; ++i){
         imwrite(basename + "_huevo_gradiente_grises"+to_string(i)+".png", huevos_bw[i]);
         imwrite(basename + "_huevo_color"+to_string(i)+".png", huevos_color[i]);
         imwrite(basename + "_huevo_distancias"+to_string(i)+".png", huevos_dist[i]);
