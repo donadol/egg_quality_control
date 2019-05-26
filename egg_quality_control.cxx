@@ -48,13 +48,17 @@ int main(int argc, char** argv){
     image_dilate = Mat::zeros(imageBin.size(), CV_8UC1);
     dilate(imageBin, image_dilate, Mat(), anchor, 1, 1, 1);
 
-    // se erosiona la imagen para eliminar el ruido fuera de los huevos
+
     image_erode = Mat::zeros(imageBin.size(), CV_8UC1);
-    erode(imageBin, image_dilate, Mat(), anchor, 1, 1, 1);
+    dilate(imageBin, image_erode, Mat(), anchor, 1, 1, 1);
 
 
     image_dilate_color = Mat::zeros(imageSeg.size(), CV_8UC3);
     dilate(imageSeg, image_dilate_color, Mat(), anchor, 1, 1, 1);
+
+    // se erosiona la imagen para eliminar el ruido fuera de los huevos
+    image_erode = Mat::zeros(imageSeg.size(), CV_8UC3);
+    erode(imageSeg, image_erode_color, Mat(), anchor, 1, 1, 1);
 
     //gradiente morfologico
     Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
@@ -117,6 +121,11 @@ imwrite(basename + "_gradiente_grises.png", gradienteGrises);
 
     imwrite(basename + "_dilate.png", image_dilate);
     imwrite(basename + "_dilate_color.png", image_dilate_color);
+
+
+    imwrite(basename + "_erode.png", image_erode);
+    imwrite(basename + "_erode_color.png", image_erode_color);
+
     imwrite(basename + "_regionesFiltradasPorTamaño.png", imagenFiltradaTam);imwrite(basename + "_regionesFiltradasPorTamañoColoreada.png", imagenFiltradaTamColoreada);
     imwrite(basename + "_transDistancia.png", transDistancia);
     imwrite(basename + "_centros.png", imagenCentros);
