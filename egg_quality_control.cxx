@@ -2,6 +2,12 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 #include <opencv2/opencv.hpp>
+#define K_HIGH_R 229.04
+#define K_LOW_R 174.42
+#define K_HIGH_G 203.33
+#define K_LOW_G 154.01
+#define K_HIGH_B 177.57
+#define K_LOW_B 136.53
 
 using namespace cv;
 using namespace std;
@@ -18,11 +24,11 @@ Rect separarHuevos(Mat image, Mat &huevo, Point centro);
 void clasificar(Mat &image, Rect r, Scalar s);
 
 void treshGradiente(Mat src, Mat dst);
-
+vector<float> promedio(Mat image);
 int main(int argc, char** argv){
     // Declare variables
-    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo;
-    Mat huevos[5];
+    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
+    Mat huevos_color[5], huevos_bw[5];
     Point anchor = Point(-1, -1);
     int numEtiqueta;
     vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
@@ -96,17 +102,31 @@ int main(int argc, char** argv){
     std::string basename;
     getline(ss, basename, '.');
     // Separar por huevos
-    for (int i = 0; i < 5; i++)
-        huevos[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
+    for (int i = 0; i < 5; i++){
+        huevos_color[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
+        huevos_bw[i]= Mat::zeros(image_dilate.size(), CV_8UC3);
+    }
     for (int i = 0, j=0; i < numEtiqueta && j<5; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
             //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
-            rectHuevos.push_back (separarHuevos(gradienteGrises, huevos[j], centros[i]));
+            rectHuevos.push_back (separarHuevos(gradienteGrises, huevos_color[j], centros[i]));
+            separarHuevos(image_dilate, huevos_bw[j], centros[i]);
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
             // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
             // filtroTamano(huevos[j], pixelesPorEtiquetaHuevo, n, 0.15, etiquetasHuevo, huevos[j]);
             j++;
+        }
+    }
+    imagenClasificada = crop.clone();
+    for(int i=0; i<5; i++){
+        vector<float> aux = promedio(huevos_color[i]);
+        cout<<"Huevo "<<i<<" R: "<<aux[2]<<" G: "<<aux[1]<<" B: "<<aux[0]<<endl;
+        if((aux[2]<K_HIGH_R && aux[2]>K_LOW_R) && (aux[1]<K_HIGH_G && aux[1]>K_LOW_B) && (aux[0]<K_HIGH_B && aux[0]>K_LOW_B)){
+            clasificar(imagenClasificada, rectHuevos[i], Scalar(0, 255, 0));
+        }
+        else{
+            clasificar(imagenClasificada, rectHuevos[i], Scalar(0, 0, 255));
         }
     }
 
@@ -116,7 +136,7 @@ int main(int argc, char** argv){
 
     imwrite(basename + "_gradiente_morfologico.png", gradienteMorfologico);
     imwrite(basename + "_gradiente_binarizado.png", gradienteBinarizado);
-imwrite(basename + "_gradiente_grises.png", gradienteGrises);
+    imwrite(basename + "_gradiente_grises.png", gradienteGrises);
 
 
     imwrite(basename + "_dilate.png", image_dilate);
@@ -129,8 +149,10 @@ imwrite(basename + "_gradiente_grises.png", gradienteGrises);
     imwrite(basename + "_regionesFiltradasPorTamaño.png", imagenFiltradaTam);imwrite(basename + "_regionesFiltradasPorTamañoColoreada.png", imagenFiltradaTamColoreada);
     imwrite(basename + "_transDistancia.png", transDistancia);
     imwrite(basename + "_centros.png", imagenCentros);
+    imwrite(basename + "_clasificados.png", imagenClasificada);
     for(int i=0; i<5; ++i){
-        imwrite(basename + "_huevo"+to_string(i)+".png", huevos[i]);
+        imwrite(basename + "_huevo_gradiente_grises"+to_string(i)+".png", huevos_bw[i]);
+        imwrite(basename + "_huevo_color"+to_string(i)+".png", huevos_color[i]);
     }
     return 0;
 }
@@ -520,4 +542,24 @@ bool pixelValido(Point punto, int cols, int rows){
 void clasificar(Mat &image, Rect r, Scalar s){
     rectangle(image, r, s, 5, 8, 0);
     //s = Scalar(b,g,r)
+}
+
+vector<float> promedio(Mat image){
+    int cont=0;
+    vector<float> prom(3,0);
+    MatIterator_<Vec3b> it, end;
+    it = image.begin<Vec3b>();
+    end = image.end<Vec3b>();
+    for (; it != end; ++it){
+        if((*it)[2]>0 && (*it)[1]>0 && (*it)[0]>0){
+            prom[2] += (*it)[2];
+            prom[1] += (*it)[1];
+            prom[0] += (*it)[0];
+            cont++;
+        }
+    }
+    prom[2]=prom[2]/cont;
+    prom[1]=prom[1]/cont;
+    prom[0]=prom[0]/cont;
+    return prom;
 }
