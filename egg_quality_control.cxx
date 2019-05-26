@@ -62,7 +62,7 @@ float numeroForma(Mat image, int pixeles);
 int main(int argc, char** argv){
     // Declare variables
     Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, image_opening_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
-    Mat huevos_color[5], huevos_bw[5], huevos_dist[5];
+    vector<Mat> huevos_color, huevos_bw, huevos_dist;
     Point anchor = Point(-1, -1);
     int numEtiqueta, numEtiquetaFiltradas;
     vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
@@ -143,10 +143,10 @@ int main(int argc, char** argv){
     std::string basename;
     getline(ss, basename, '.');
     // Separar por huevos
-    for (int i = 0; i < 5; i++){
-        huevos_color[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
-        huevos_bw[i]= Mat::zeros(image_dilate.size(), CV_8UC3);
-        huevos_dist[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
+    for (int i = 0; i < numEtiquetaFiltradas; i++){
+        huevos_color.push_back(Mat::zeros(image_dilate.size(), CV_8UC1));
+        huevos_bw.push_back(Mat::zeros(image_dilate.size(), CV_8UC3));
+        huevos_dist.push_back(Mat::zeros(image_dilate.size(), CV_8UC1));
     }
     for (int i = 0, j=0; i < numEtiqueta && j<numEtiquetaFiltradas; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
