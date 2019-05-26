@@ -21,7 +21,7 @@ void treshGradiente(Mat src, Mat dst);
 
 int main(int argc, char** argv){
     // Declare variables
-    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo;
+    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo;
     Mat huevos[5];
     Point anchor = Point(-1, -1);
     int numEtiqueta;
@@ -47,6 +47,11 @@ int main(int argc, char** argv){
     // se dilata la imagen para eliminar las caracteristicas no deseadas
     image_dilate = Mat::zeros(imageBin.size(), CV_8UC1);
     dilate(imageBin, image_dilate, Mat(), anchor, 1, 1, 1);
+
+    // se erosiona la imagen para eliminar el ruido fuera de los huevos
+    image_erode = Mat::zeros(imageBin.size(), CV_8UC1);
+    erode(imageBin, image_dilate, Mat(), anchor, 1, 1, 1);
+
 
     image_dilate_color = Mat::zeros(imageSeg.size(), CV_8UC3);
     dilate(imageSeg, image_dilate_color, Mat(), anchor, 1, 1, 1);
@@ -142,30 +147,62 @@ void binarizar(Mat src, Mat dst){
     itb = dst.begin<Vec3b>();
     endb = dst.end<Vec3b>();
     for (; it != end && itb != endb; ++it, ++itb) {
-        if (!((*it)[2] < rUmbral && (*it)[1] > gUmbral)) {
+
             (*itb)[2] = 255;
             (*itb)[1] = 255;
             (*itb)[0] = 255;
-        } else {
-            (*itb)[2] = 0;
-            (*itb)[1] = 0;
-            (*itb)[0] = 0;
-        }
-        if (((*it)[2] < 25 && (*it)[1] < 25)) {
-            (*itb)[2] = 0;
-            (*itb)[1] = 0;
-            (*itb)[0] = 0;
-        }
-        if (((*it)[2] < 200 && (*it)[1] > 130 && (*it)[0] > 160)) {
-            (*itb)[2] = 0;
-            (*itb)[1] = 0;
-            (*itb)[0] = 0;
-        }
-        if (((*it)[2] < 130 && (*it)[1] > 125 && (*it)[0] <= 160)) {
-            (*itb)[2] = 0;
-            (*itb)[1] = 0;
-            (*itb)[0] = 0;
-        }
+
+
+            if ((*it)[2] < 40 && (*it)[1] > 50 && (*it)[0] > 20) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+
+            if ((*it)[2] < 85 && (*it)[1] > 80 && (*it)[0] > 70) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+
+    //VERDE OSCURO
+            if ((*it)[2] < 30 && (*it)[1] > 20) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+
+            if ((*it)[2] < 50 && (*it)[1] > 60 && (*it)[1] > 60) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+
+    //VERDE CLARO
+            if ((*it)[2] < 250 && (*it)[1] > 250 && (*it)[1] > 250) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+
+
+
+
+            if (((*it)[2] < 25 && (*it)[1] < 25)) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+            if (((*it)[2] < 200 && (*it)[1] > 130 && (*it)[0] > 160)) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
+            if (((*it)[2] < 130 && (*it)[1] > 125 && (*it)[0] <= 160)) {
+                (*itb)[2] = 0;
+                (*itb)[1] = 0;
+                (*itb)[0] = 0;
+            }
     } // rof
 }
 
@@ -218,22 +255,53 @@ void segmentar(Mat src, Mat dst){
 
     int rUmbral = 100;
     int gUmbral = 20;
-    int bUmbral = 50;
 
     it = src.begin<Vec3b>();
     end = src.end<Vec3b>();
     itb = dst.begin<Vec3b>();
     endb = dst.end<Vec3b>();
     for (; it != end && itb != endb; ++it, ++itb) {
-        if (!((*it)[2] < rUmbral && (*it)[1] > gUmbral)) {
-            (*itb)[2] = (*it)[2];
-            (*itb)[1] = (*it)[1];
-            (*itb)[0] = (*it)[0];
-        } else {
+
+
+        (*itb)[2] = (*it)[2];
+        (*itb)[1] = (*it)[1];
+        (*itb)[0] = (*it)[0];
+
+        if ((*it)[2] < 40 && (*it)[1] > 50 && (*it)[0] > 20) {
             (*itb)[2] = 0;
             (*itb)[1] = 0;
             (*itb)[0] = 0;
         }
+
+        if ((*it)[2] < 85 && (*it)[1] > 80 && (*it)[0] > 70) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+//VERDE OSCURO
+        if ((*it)[2] < 30 && (*it)[1] > 20) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+        if ((*it)[2] < 50 && (*it)[1] > 60 && (*it)[1] > 60) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+//VERDE CLARO
+        if ((*it)[2] < 250 && (*it)[1] > 250 && (*it)[1] > 250) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+
+
+
         if (((*it)[2] < 25 && (*it)[1] < 25)) {
             (*itb)[2] = 0;
             (*itb)[1] = 0;
