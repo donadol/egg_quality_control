@@ -36,8 +36,8 @@ typedef itk::ImageFileReader<InternalImageType> ReaderType;
 #define K_LOW_G 142
 #define K_HIGH_B 192
 #define K_LOW_B 105
-#define K_HIGH_FORM 166477
-#define K_LOW_FORM 154733
+#define K_HIGH_FORM 0.23
+#define K_LOW_FORM 0.19
 # define PI 3.14159265358979323846
 
 using namespace cv;
@@ -150,10 +150,9 @@ int main(int argc, char** argv){
     }
     for (int i = 0, j=0; i < numEtiqueta && j<numEtiquetaFiltradas; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
-            //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
-            rectHuevos.push_back (separarHuevos(imageSeg, huevos_color[j], centros[i]));
-            separarHuevos(image_dilate, huevos_bw[j], centros[i]);
-            separarHuevos(transDistancia, huevos_dist[j], centros[i]);
+            rectHuevos.push_back(separarHuevos(image_dilate, huevos_bw[j], centros[i]));
+            huevos_color[j] = imageSeg(rectHuevos[j]);
+            huevos_dist[j] = transDistancia(rectHuevos[j]);
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
             // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
@@ -259,10 +258,6 @@ void binarizar(Mat src, Mat dst){
                 (*itb)[1] = 0;
                 (*itb)[0] = 0;
             }
-
-
-
-
             if (((*it)[2] < 25 && (*it)[1] < 25)) {
                 (*itb)[2] = 0;
                 (*itb)[1] = 0;
@@ -314,7 +309,6 @@ void treshGradiente(Mat src, Mat dst){
         }
     }
 }
-
 
 void segmentar(Mat src, Mat dst){
     int rHst[256] = { 0 }, gHst[256] = { 0 }, bHst[256] = { 0 };
@@ -373,10 +367,6 @@ void segmentar(Mat src, Mat dst){
             (*itb)[1] = 0;
             (*itb)[0] = 0;
         }
-
-
-
-
         if (((*it)[2] < 25 && (*it)[1] < 25)) {
             (*itb)[2] = 0;
             (*itb)[1] = 0;
@@ -394,7 +384,6 @@ void segmentar(Mat src, Mat dst){
         }
     } // rof
 }
-
 
 int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta){
     int numEtiqueta=0;
@@ -554,12 +543,37 @@ vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &i
 }
 
 Rect separarHuevos(Mat image, Mat &huevo, Point centro){
-    Point left_up (centro.x-110, centro.y-80);
+    int right=0, left=0, up=0, down=0;
+    for (int i = centro.x; i < image.cols-1; i++) {
+        if((int)image.at<uchar>(Point(i+1, centro.y))==0){
+            right=i;
+            break;
+        }
+    }
+    for (int i = centro.x; i > 0; i--) {
+        if((int)image.at<uchar>(Point(i-1, centro.y))==0){
+            left=i;
+            break;
+        }
+    }
+    for (int j = centro.y; j < image.rows-1; j++) {
+        if((int)image.at<uchar>(Point(centro.x, j+1))==0){
+            down=j;
+            break;
+        }
+    }
+    for (int j = centro.y; j > 0; j--) {
+        if((int)image.at<uchar>(Point(centro.x, j-1))==0){
+            up=j;
+            break;
+        }
+    }
+    Point left_up (left-20, up-20);
     if(left_up.x<0)
         left_up.x=0;
     if(left_up.y<0)
         left_up.y=0;
-    Point right_down (centro.x+110, centro.y+80);
+    Point right_down (right+20, down+20);
     if(right_down.x>=image.cols)
         right_down.x=image.cols-1;
     if(right_down.y>=image.rows)
