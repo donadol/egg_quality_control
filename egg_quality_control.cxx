@@ -149,13 +149,14 @@ int main(int argc, char** argv){
         if (pixelesPorEtiqueta[i] != 0) {
 
             //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
-            separarHuevos(image_dilate, huevos_bw[j], centros[i]);
-            separarHuevos(transDistancia, huevos_dist[j], centros[i]);
-            separarHuevos(gradienteGrises, huevos_gradiente[j], centros[i]);
+
 
             rectHuevos.push_back(separarHuevos(image_dilate, huevos_bw[j], centros[i]));
             huevos_color[j] = imageSeg(rectHuevos[j]);
             huevos_dist[j] = transDistancia(rectHuevos[j]);
+
+            huevos_gradiente[j] = gradienteGrises (rectHuevos[j]);
+
 
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
