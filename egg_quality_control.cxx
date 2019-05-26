@@ -2,12 +2,12 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 #include <opencv2/opencv.hpp>
-#define K_HIGH_R 229.04
-#define K_LOW_R 174.42
-#define K_HIGH_G 203.33
-#define K_LOW_G 154.01
-#define K_HIGH_B 177.57
-#define K_LOW_B 136.53
+#define K_HIGH_R 241
+#define K_LOW_R 164
+#define K_HIGH_G 215
+#define K_LOW_G 143
+#define K_HIGH_B 192
+#define K_LOW_B 122
 
 using namespace cv;
 using namespace std;
@@ -15,25 +15,27 @@ using namespace std;
 void binarizar(Mat src, Mat dst);
 void segmentar(Mat src, Mat dst);
 int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta);
-void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada);
+int filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada);
 void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam);
 vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &imagenCentros, vector<int> pixelesPorEtiqueta, int numEtiqueta);
 vector<Point> obtener4Vecinos(Point punto, int cols, int rows);
 bool pixelValido(Point punto, int cols, int rows);
 Rect separarHuevos(Mat image, Mat &huevo, Point centro);
-void clasificar(Mat &image, Rect r, Scalar s);
 
 void treshGradiente(Mat src, Mat dst);
-vector<float> promedio(Mat image);
+vector<float> promedio(Mat image, Mat imagebw);
+void clasificar(Mat &image, Rect r, vector<float> prom, int i);
+
 int main(int argc, char** argv){
     // Declare variables
     Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, image_opening_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
     Mat huevos_color[5], huevos_bw[5];
     Point anchor = Point(-1, -1);
-    int numEtiqueta;
+    int numEtiqueta, numEtiquetaFiltradas;
     vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
     vector<Point> centros;
     vector<Rect> rectHuevos;
+    vector<float> aux;
     // Loads an image
     src = imread(argv[1], 1);
     if (src.empty()) {
@@ -93,7 +95,8 @@ int main(int argc, char** argv){
     numEtiqueta = etiquetado(image_dilate, etiquetas, pixelesPorEtiqueta);
 
     // Filtrado por tamaño de la imagen
-    filtroTamano(image_dilate, pixelesPorEtiqueta, numEtiqueta, 0.15, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada);
+    numEtiquetaFiltradas=filtroTamano(image_dilate, pixelesPorEtiqueta, numEtiqueta, 0.15, etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada);
+    cout<<"Número de etiquetas después de filtrar: "<<numEtiquetaFiltradas<<endl;
 
     // Transformada distancia
     distanceTransform(imagenFiltradaTam, transDistancia, 2, 3);
@@ -111,10 +114,10 @@ int main(int argc, char** argv){
         huevos_color[i]= Mat::zeros(image_dilate.size(), CV_8UC1);
         huevos_bw[i]= Mat::zeros(image_dilate.size(), CV_8UC3);
     }
-    for (int i = 0, j=0; i < numEtiqueta && j<5; i++) {
+    for (int i = 0, j=0; i < numEtiqueta && j<numEtiquetaFiltradas; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
             //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
-            rectHuevos.push_back (separarHuevos(gradienteGrises, huevos_color[j], centros[i]));
+            rectHuevos.push_back (separarHuevos(imageSeg, huevos_color[j], centros[i]));
             separarHuevos(image_dilate, huevos_bw[j], centros[i]);
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
@@ -124,15 +127,11 @@ int main(int argc, char** argv){
         }
     }
     imagenClasificada = crop.clone();
-    for(int i=0; i<5; i++){
-        vector<float> aux = promedio(huevos_color[i]);
+    for(int i=0; i<numEtiquetaFiltradas; i++){
+        aux.clear();
+        aux = promedio(huevos_color[i], huevos_bw[i]);
         cout<<"Huevo "<<i<<" R: "<<aux[2]<<" G: "<<aux[1]<<" B: "<<aux[0]<<endl;
-        if((aux[2]<K_HIGH_R && aux[2]>K_LOW_R) && (aux[1]<K_HIGH_G && aux[1]>K_LOW_B) && (aux[0]<K_HIGH_B && aux[0]>K_LOW_B)){
-            clasificar(imagenClasificada, rectHuevos[i], Scalar(0, 255, 0));
-        }
-        else{
-            clasificar(imagenClasificada, rectHuevos[i], Scalar(0, 0, 255));
-        }
+        clasificar(imagenClasificada, rectHuevos[i], aux,i);
     }
 
     imwrite(basename + "_crop.png", crop);
@@ -143,17 +142,16 @@ int main(int argc, char** argv){
     imwrite(basename + "_gradiente_binarizado.png", gradienteBinarizado);
     imwrite(basename + "_gradiente_grises.png", gradienteGrises);
 
-
     imwrite(basename + "_dilate.png", image_dilate);
     imwrite(basename + "_dilate_color.png", image_dilate_color);
-
 
     imwrite(basename + "_erode.png", image_erode);
     imwrite(basename + "_erode_color.png", image_erode_color);
 
     imwrite(basename + "_opening.png", image_opening_color);
 
-    imwrite(basename + "_regionesFiltradasPorTamaño.png", imagenFiltradaTam);imwrite(basename + "_regionesFiltradasPorTamañoColoreada.png", imagenFiltradaTamColoreada);
+    imwrite(basename + "_regionesFiltradasPorTamaño.png", imagenFiltradaTam);
+    imwrite(basename + "_regionesFiltradasPorTamañoColoreada.png", imagenFiltradaTamColoreada);
     imwrite(basename + "_transDistancia.png", transDistancia);
     imwrite(basename + "_centros.png", imagenCentros);
     imwrite(basename + "_clasificados.png", imagenClasificada);
@@ -398,8 +396,9 @@ int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta){
     return numEtiqueta;
 }
 
-void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada){
+int filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada){
     int regionMasGrande = 0;
+    int n=0;
     for (int i = 0; i < numEtiqueta; i++){
         if (pixelesPorEtiqueta[i] > regionMasGrande)
             regionMasGrande = pixelesPorEtiqueta[i];
@@ -423,10 +422,13 @@ void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, f
     cout << "Después de filtrar por tamaño las regiones, las restastes son:" << endl;
     cout << "Region Pixeles" << endl;
     for (int i = 0; i < numEtiqueta; i++){
-        if (pixelesPorEtiqueta[i] != 0)
+        if (pixelesPorEtiqueta[i] != 0){
             cout << setw(6) << i + 1 << setw(8) << pixelesPorEtiqueta[i] << endl;
+            n++;
+        }
     }
     cout << endl;
+    return n;
 }
 
 void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam){
@@ -546,19 +548,30 @@ bool pixelValido(Point punto, int cols, int rows){
     return (punto.x >= 0 && punto.x < cols) && (punto.y >= 0 && punto.y < rows);
 }
 
-void clasificar(Mat &image, Rect r, Scalar s){
-    rectangle(image, r, s, 5, 8, 0);
+void clasificar(Mat &image, Rect r, vector<float> prom, int i){
+    if((prom[2]<=K_HIGH_R && prom[2]>=K_LOW_R) && (prom[1]<=K_HIGH_G && prom[1]>=K_LOW_B) && (prom[0]<=K_HIGH_B && prom[0]>=K_LOW_B)){
+        cout<<"Huevo "<<i<<" pasa"<<endl;
+        rectangle(image, r, Scalar(0, 255, 0),5,8,0);
+    }
+    else{
+        cout<<"Huevo "<<i<<" no pasa"<<endl;
+        rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+    }
+    //rectangle(image, r, s, 5, 8, 0);
     //s = Scalar(b,g,r)
 }
 
-vector<float> promedio(Mat image){
-    int cont=0;
+vector<float> promedio(Mat image, Mat imagebw){
     vector<float> prom(3,0);
+    int cont=0;
     MatIterator_<Vec3b> it, end;
+    MatIterator_<uchar> itbw, endbw;
     it = image.begin<Vec3b>();
     end = image.end<Vec3b>();
-    for (; it != end; ++it){
-        if((*it)[2]>0 && (*it)[1]>0 && (*it)[0]>0){
+    itbw = imagebw.begin<uchar>();
+    endbw = imagebw.end<uchar>();
+    for (; it != end && itbw!=end; ++it, ++itbw){
+        if((*itbw)>0){
             prom[2] += (*it)[2];
             prom[1] += (*it)[1];
             prom[0] += (*it)[0];
