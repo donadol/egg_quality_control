@@ -27,7 +27,7 @@ typedef itk::AddImageFilter <InternalImageType> AddImageFilterType;
 typedef itk::MultiplyImageFilter<InternalImageType> MultiplyImageFilterType;
 typedef itk::RescaleIntensityImageFilter< InternalImageType, InternalImageType > RescaleFilterType;
 typedef itk::RegionOfInterestImageFilter<InternalImageType,InternalImageType> roiType;
-typedef itk::ImageFileReader<InternalImageType> ReaderType;
+typedef itk::ImageFileWriter <InternalImageType> WriterType;
 
 
 #define K_HIGH_R 241
@@ -59,10 +59,15 @@ void clasificar(Mat &image, Rect r, vector<float> prom, float numForma);
 int totalPixeles(Mat image, Mat imagebw);
 float numeroForma(Mat image, int pixeles);
 
+
+void imagenOpenCVAITK (Mat &imageOCV, InternalImageType::Pointer imageITK);
+bool tieneGrietas (Mat imageMat, int sizeX, int sizeY);
+
+
 int main(int argc, char** argv){
     // Declare variables
-    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color, image_erode, image_erode_color, image_opening_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
-    vector<Mat> huevos_color, huevos_bw, huevos_dist;
+    Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
+    vector<Mat> huevos_color, huevos_bw, huevos_dist, huevos_gradiente;
     Point anchor = Point(-1, -1);
     int numEtiqueta, numEtiquetaFiltradas;
     vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
@@ -90,30 +95,21 @@ int main(int argc, char** argv){
     dilate(imageBin, image_dilate, Mat(), anchor, 1, 1, 1);
 
 
-    image_erode = Mat::zeros(imageBin.size(), CV_8UC1);
-    dilate(imageBin, image_erode, Mat(), anchor, 1, 1, 1);
 
 
     image_dilate_color = Mat::zeros(imageSeg.size(), CV_8UC3);
     dilate(imageSeg, image_dilate_color, Mat(), anchor, 1, 1, 1);
 
-    // se erosiona la imagen para eliminar el ruido fuera de los huevos
-    image_erode = Mat::zeros(imageSeg.size(), CV_8UC3);
-    erode(imageSeg, image_erode_color, Mat(), anchor, 1, 1, 1);
 
 
-    image_opening_color = Mat::zeros(imageSeg.size(), CV_8UC3);
-    dilate (image_erode_color, image_opening_color, Mat(), anchor, 1, 1, 1);
 
 
     //gradiente morfologico
     Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
     Mat gradienteMorfologico = Mat::zeros(imageSeg.size(), CV_8UC1);
-    morphologyEx(imageSeg, gradienteMorfologico, MORPH_GRADIENT, kernel);
+    morphologyEx(image_dilate_color, gradienteMorfologico, MORPH_GRADIENT, kernel);
 
 
-    Mat gradienteBinarizado = Mat::zeros(gradienteMorfologico.size(), CV_8UC1);
-    treshGradiente (gradienteMorfologico, gradienteBinarizado);
 
     Mat gradienteGrises = Mat::zeros(gradienteMorfologico.size(), CV_8UC1);
     cvtColor (gradienteMorfologico, gradienteGrises, COLOR_RGB2GRAY);
@@ -146,6 +142,7 @@ int main(int argc, char** argv){
     for (int i = 0; i < numEtiquetaFiltradas; i++){
         huevos_color.push_back(Mat::zeros(image_dilate.size(), CV_8UC1));
         huevos_bw.push_back(Mat::zeros(image_dilate.size(), CV_8UC3));
+        huevos_gradiente.push_back(Mat::zeros(image_dilate.size(), CV_8UC1));
         huevos_dist.push_back(Mat::zeros(image_dilate.size(), CV_8UC1));
     }
     for (int i = 0, j=0; i < numEtiqueta && j<numEtiquetaFiltradas; i++) {
@@ -154,6 +151,7 @@ int main(int argc, char** argv){
             rectHuevos.push_back (separarHuevos(imageSeg, huevos_color[j], centros[i]));
             separarHuevos(image_dilate, huevos_bw[j], centros[i]);
             separarHuevos(transDistancia, huevos_dist[j], centros[i]);
+            separarHuevos(gradienteGrises, huevos_gradiente[j], centros[i]);
             // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
             // pixelesPorEtiquetaHuevo.clear();
             // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
@@ -165,28 +163,32 @@ int main(int argc, char** argv){
     for(int i=0; i<numEtiquetaFiltradas; i++){
         aux.clear();
         aux = promedio(huevos_color[i], huevos_bw[i]);
+
+
+
         cout<<"Huevo "<<i<<":"<<endl<<"R: "<<aux[2]<<" G: "<<aux[1]<<" B: "<<aux[0]<<endl;
         cout<<"Cantidad pixeles: "<<totalPixeles(huevos_dist[i], huevos_bw[i])<<endl;
         float nf =numeroForma(huevos_dist[i], totalPixeles(huevos_dist[i], huevos_bw[i]));
         cout<<"Número de forma: "<<nf<<endl;
         clasificar(imagenClasificada, rectHuevos[i], aux, nf);
+
+        tieneGrietas(huevos_gradiente[i], huevos_gradiente[i].cols, huevos_gradiente[i].rows);
+
     }
+
+
 
     imwrite(basename + "_crop.png", crop);
     imwrite(basename + "_binarizada.png", imageBin);
     imwrite(basename + "_segmentada.png", imageSeg);
 
     imwrite(basename + "_gradiente_morfologico.png", gradienteMorfologico);
-    imwrite(basename + "_gradiente_binarizado.png", gradienteBinarizado);
     imwrite(basename + "_gradiente_grises.png", gradienteGrises);
 
     imwrite(basename + "_dilate.png", image_dilate);
     imwrite(basename + "_dilate_color.png", image_dilate_color);
 
-    imwrite(basename + "_erode.png", image_erode);
-    imwrite(basename + "_erode_color.png", image_erode_color);
 
-    imwrite(basename + "_opening.png", image_opening_color);
 
     imwrite(basename + "_regionesFiltradasPorTamaño.png", imagenFiltradaTam);
     imwrite(basename + "_regionesFiltradasPorTamañoColoreada.png", imagenFiltradaTamColoreada);
@@ -194,7 +196,7 @@ int main(int argc, char** argv){
     imwrite(basename + "_centros.png", imagenCentros);
     imwrite(basename + "_clasificados.png", imagenClasificada);
     for(int i=0; i<numEtiquetaFiltradas; ++i){
-        imwrite(basename + "_huevo_gradiente_grises"+to_string(i)+".png", huevos_bw[i]);
+        imwrite(basename + "_huevo_gradiente_grises"+to_string(i)+".png", huevos_gradiente[i]);
         imwrite(basename + "_huevo_color"+to_string(i)+".png", huevos_color[i]);
         imwrite(basename + "_huevo_distancias"+to_string(i)+".png", huevos_dist[i]);
     }
@@ -655,4 +657,114 @@ float numeroForma(Mat image, int pixeles){
         cont+=(*it);
     }
     return (float)pow(pixeles,3)/(float)(9*PI*pow(cont-sqrt(0.5)/2*cont,2));
+}
+
+void imagenOpenCVAITK (Mat &imageOCV, InternalImageType::Pointer imageITK){
+    InternalImageType::IndexType start;
+    start[0] = 0;  // first index on X
+    start[1] = 0;  // first index on Y
+
+
+    InternalImageType::SizeType  size;
+    size[0] = imageOCV.cols;  // size along X
+    size[1] = imageOCV.rows;  // size along Y
+
+    InternalImageType::RegionType region;
+    region.SetSize( size );
+    region.SetIndex( start );
+
+    imageITK->SetRegions( region );
+    imageITK->Allocate();
+
+
+    Mat_<uchar>::iterator itMat= imageOCV.begin<uchar>();
+// obtain end position
+    Mat_<uchar>::iterator itend= imageOCV.end<uchar>();
+
+
+    itk::ImageRegionIterator<InternalImageType> it (imageITK,region);
+    for (; !it.IsAtEnd(); ++it, itMat++)
+    {
+        it.Set( (int)(*itMat) );
+    }
+
+    WriterType::Pointer writer = WriterType::New();
+    writer->SetFileName("ImagenGRISITK.png");
+    writer->SetInput(imageITK);
+    writer->Update();
+
+}
+
+
+
+bool tieneGrietas (Mat imageMat, int sizeX, int sizeY)
+{
+    InternalImageType::Pointer inputImage = InternalImageType::New();
+    imagenOpenCVAITK(imageMat, inputImage);
+
+
+    NeighborhoodType neighborhood;
+    neighborhood.SetRadius( 1 );
+    unsigned int centerIndex = neighborhood.GetCenterNeighborhoodIndex( );
+
+    OffsetType offset;
+
+    for ( unsigned int d = 0; d < centerIndex; d++ )
+    {
+      offset = neighborhood.GetOffset( d );
+
+      std::cout << "\nFor orientation " << d << ":\n";
+
+      Image2CoOccuranceType::Pointer glcmGenerator = Image2CoOccuranceType::New( );
+      glcmGenerator->SetOffset( offset );
+      glcmGenerator->SetNumberOfBinsPerAxis( 16 ); //reasonable number of bins
+      glcmGenerator->SetPixelValueMinMax( 0, 255 ); //for input UCHAR pixel type
+
+      Hist2FeaturesType::Pointer featureCalc = Hist2FeaturesType::New( );
+
+      //region of interest
+      roiType::Pointer roi = roiType::New( );
+      roi->SetInput( inputImage );
+
+
+
+      InternalImageType::IndexType start;
+      start[0] = 0;
+      start[1] = 0;
+
+      InternalImageType::IndexType end;
+      end[0] = sizeX - 1;
+      end[1] = sizeY - 1;
+
+
+
+      InternalImageType::RegionType region;
+      region.SetIndex( start );
+      region.SetUpperIndex( end );
+
+
+
+
+      roi->SetRegionOfInterest( region );
+      roi->Update( );
+
+      glcmGenerator->SetInput( roi->GetOutput( ) );
+      glcmGenerator->Update( );
+
+      featureCalc->SetInput( glcmGenerator->GetOutput( ) );
+      featureCalc->Update( );
+
+      std::cout << "Inertia: " << featureCalc->GetInertia( ) << std::endl;
+      std::cout << "Correlation: " << featureCalc->GetCorrelation( ) << std::endl;
+      std::cout << "Energy: " << featureCalc->GetEnergy( ) << std::endl;
+      std::cout << "Entropy: " << featureCalc->GetEntropy( ) << std::endl;
+      std::cout << "Homogeneity: " << featureCalc->GetInverseDifferenceMoment( ) << std::endl;
+
+      std::cout << "======================================== " << endl;
+
+
+  }
+
+  return false;
+
 }
