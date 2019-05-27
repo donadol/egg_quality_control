@@ -38,7 +38,13 @@ typedef itk::ImageFileWriter <InternalImageType> WriterType;
 #define K_LOW_B 105
 #define K_HIGH_FORM 0.23
 #define K_LOW_FORM 0.19
-# define PI 3.14159265358979323846
+#define PI 3.14159265358979323846
+
+
+#define K_INERTIA_O 6.252321976
+#define K_INERTIA_1 4.948496536
+#define K_INERTIA_2 6.238251917
+#define K_INERTIA_3 3.825991037
 
 using namespace cv;
 using namespace std;
@@ -55,7 +61,7 @@ Rect separarHuevos(Mat image, Mat &huevo, Point centro);
 
 void treshGradiente(Mat src, Mat dst);
 vector<float> promedio(Mat image, Mat imagebw);
-void clasificar(Mat &image, Rect r, vector<float> prom, float numForma);
+void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool tieneGrietas);
 int totalPixeles(Mat image, Mat imagebw);
 float numeroForma(Mat image, int pixeles);
 
@@ -76,8 +82,9 @@ int main(int argc, char** argv){
     vector<Point> centros;
     vector<Rect> rectHuevos;
     vector<float> aux;
+    bool tieneGrietasB;
     // Loads an image
-    src = imread(argv[1], 1);
+    src = imread(argv[1], CV_LOAD_IMAGE_COLOR);
     if (src.empty()) {
         std::cerr << "Usage: " << argv[0] << " image_file" << std::endl;
         return -1;
@@ -178,6 +185,7 @@ int main(int argc, char** argv){
         }
     }
     imagenClasificada = crop.clone();
+
     for(int i=0; i<numEtiquetaFiltradas; i++){
         aux.clear();
         aux = promedio(huevos_color[i], huevos_bw[i]);
@@ -188,9 +196,9 @@ int main(int argc, char** argv){
         cout<<"Cantidad pixeles: "<<totalPixeles(huevos_dist[i], huevos_bw[i])<<endl;
         float nf =numeroForma(huevos_dist[i], totalPixeles(huevos_dist[i], huevos_bw[i]));
         cout<<"Número de forma: "<<nf<<endl;
-        clasificar(imagenClasificada, rectHuevos[i], aux, nf);
 
-        tieneGrietas(huevos_gradiente[i], huevos_gradiente[i].cols, huevos_gradiente[i].rows);
+        tieneGrietasB = tieneGrietas(huevos_gradiente[i], huevos_gradiente[i].cols, huevos_gradiente[i].rows);
+        clasificar(imagenClasificada, rectHuevos[i], aux, nf, tieneGrietas);
 
     }
 
@@ -642,7 +650,7 @@ bool pixelValido(Point punto, int cols, int rows){
     return (punto.x >= 0 && punto.x < cols) && (punto.y >= 0 && punto.y < rows);
 }
 
-void clasificar(Mat &image, Rect r, vector<float> prom, float numForma){
+void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool tieneGrietas){
     if(!((prom[2]<=K_HIGH_R && prom[2]>=K_LOW_R) && (prom[1]<=K_HIGH_G && prom[1]>=K_LOW_B) && (prom[0]<=K_HIGH_B && prom[0]>=K_LOW_B))){
         cout<<"No pasa por color"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
@@ -651,9 +659,10 @@ void clasificar(Mat &image, Rect r, vector<float> prom, float numForma){
         cout<<"No pasa por forma"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
     }
-    // else if(grietas){
-        //rectangle(image, r, Scalar(0, 0, 255),5,8,0);
-    // }
+    else if(tieneGrietas){
+        cout<<"No pasa porque tiene grietas"<<endl;
+        rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+    }
     else{
         cout<<"Pasa todos los parametros"<<endl;
         rectangle(image, r, Scalar(0, 255, 0),5,8,0);
@@ -807,17 +816,33 @@ bool tieneGrietas (Mat imageMat, int sizeX, int sizeY)
       featureCalc->SetInput( glcmGenerator->GetOutput( ) );
       featureCalc->Update( );
 
-      std::cout << "Inertia: " << featureCalc->GetInertia( ) << std::endl;
-      std::cout << "Correlation: " << featureCalc->GetCorrelation( ) << std::endl;
+
+      double inertia = featureCalc->GetInertia( );
+      std::cout << "Inertia: " << inertia << std::endl;
+      /*std::cout << "Correlation: " << featureCalc->GetCorrelation( ) << std::endl;
       std::cout << "Energy: " << featureCalc->GetEnergy( ) << std::endl;
       std::cout << "Entropy: " << featureCalc->GetEntropy( ) << std::endl;
       std::cout << "Homogeneity: " << featureCalc->GetInverseDifferenceMoment( ) << std::endl;
 
-      std::cout << "======================================== " << endl;
+      std::cout << "======================================== " << endl;*/
+
+      if (d == 0)
+          if (inertia > K_INERTIA_O)
+            return false;
+
+      if (d == 1)
+        if (inertia > K_INERTIA_1)
+            return false;
+      if (d == 2)
+        if (inertia > K_INERTIA_2)
+            return false;
+      if (d == 3)
+         if (inertia > K_INERTIA_3)
+            return false;
 
 
   }
 
-  return false;
+  return true;
 
 }
