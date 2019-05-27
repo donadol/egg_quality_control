@@ -45,9 +45,9 @@ using namespace std;
 
 void binarizar(Mat src, Mat dst);
 void segmentar(Mat src, Mat dst);
-int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta);
-int filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada);
-void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam);
+int etiquetado(Mat &image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta);
+int filtroTamano(Mat &image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada);
+void filtroTamano(Mat &image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam);
 vector<Point> hallarCentros(Mat image, Mat etiquetas, Mat transDistancia, Mat &imagenCentros, vector<int> pixelesPorEtiqueta, int numEtiqueta);
 vector<Point> obtener4Vecinos(Point punto, int cols, int rows);
 bool pixelValido(Point punto, int cols, int rows);
@@ -64,13 +64,15 @@ void imagenOpenCVAITK (Mat &imageOCV, InternalImageType::Pointer imageITK);
 bool tieneGrietas (Mat imageMat, int sizeX, int sizeY);
 
 
+void colorearHuevo (Mat &bin_image, Mat &color_image, Mat &dilate_image);
+
 int main(int argc, char** argv){
     // Declare variables
     Mat src, crop, imageBin, imageSeg, image_dilate, image_dilate_color,  etiquetas, imagenFiltradaTam, imagenFiltradaTamColoreada, transDistancia, imagenCentros, etiquetasHuevo, imagenClasificada;
     vector<Mat> huevos_color, huevos_bw, huevos_dist, huevos_gradiente;
     Point anchor = Point(-1, -1);
     int numEtiqueta, numEtiquetaFiltradas;
-    vector<int> pixelesPorEtiqueta, pixelesPorEtiquetaHuevo;
+    vector<int> pixelesPorEtiqueta;
     vector<Point> centros;
     vector<Rect> rectHuevos;
     vector<float> aux;
@@ -106,13 +108,8 @@ int main(int argc, char** argv){
 
     //gradiente morfologico
     Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(3, 3));
-    Mat gradienteMorfologico = Mat::zeros(imageSeg.size(), CV_8UC1);
-    morphologyEx(image_dilate_color, gradienteMorfologico, MORPH_GRADIENT, kernel);
 
 
-
-    Mat gradienteGrises = Mat::zeros(gradienteMorfologico.size(), CV_8UC1);
-    cvtColor (gradienteMorfologico, gradienteGrises, COLOR_RGB2GRAY);
 
 
 
@@ -148,20 +145,35 @@ int main(int argc, char** argv){
     for (int i = 0, j=0; i < numEtiqueta && j<numEtiquetaFiltradas; i++) {
         if (pixelesPorEtiqueta[i] != 0) {
 
-            //rectHuevos.push_back(separarHuevos(image_dilate, huevos[j], centros[i]));
+
 
 
             rectHuevos.push_back(separarHuevos(image_dilate, huevos_bw[j], centros[i]));
-            huevos_color[j] = imageSeg(rectHuevos[j]);
+            huevos_color[j] = image_dilate_color(rectHuevos[j]).clone();
+            huevos_bw [j] = image_dilate(rectHuevos[j]);
+
+
+
+
+            etiquetasHuevo=Mat::zeros(huevos_bw[j].size(), CV_32S);
+            vector<int> pixelesPorEtiquetaHuevo;
+            int n = etiquetado(huevos_bw[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
+            Mat huevoPrueba = Mat::zeros(huevos_bw[j].size(), CV_8UC1);
+            filtroTamano(huevos_bw[j], pixelesPorEtiquetaHuevo, n, 0.50, etiquetasHuevo, huevoPrueba );
+            huevos_bw[j] = huevoPrueba;
+
+
+            colorearHuevo (huevos_bw[j], huevos_color[j], huevos_color[j]);
+
+
+
             huevos_dist[j] = transDistancia(rectHuevos[j]);
 
-            huevos_gradiente[j] = gradienteGrises (rectHuevos[j]);
+            morphologyEx(huevos_color[j], huevos_gradiente[j], MORPH_GRADIENT, kernel);
+            cvtColor (huevos_gradiente[j], huevos_gradiente[j], COLOR_RGB2GRAY);
 
+            threshold( huevos_gradiente[j], huevos_gradiente[j], 25, 255, THRESH_BINARY);
 
-            // etiquetasHuevo=Mat::zeros(huevos[j].size(), CV_32S);
-            // pixelesPorEtiquetaHuevo.clear();
-            // int n = etiquetado(huevos[j], etiquetasHuevo, pixelesPorEtiquetaHuevo);
-            // filtroTamano(huevos[j], pixelesPorEtiquetaHuevo, n, 0.15, etiquetasHuevo, huevos[j]);
             j++;
         }
     }
@@ -188,8 +200,6 @@ int main(int argc, char** argv){
     imwrite(basename + "_binarizada.png", imageBin);
     imwrite(basename + "_segmentada.png", imageSeg);
 
-    imwrite(basename + "_gradiente_morfologico.png", gradienteMorfologico);
-    imwrite(basename + "_gradiente_grises.png", gradienteGrises);
 
     imwrite(basename + "_dilate.png", image_dilate);
     imwrite(basename + "_dilate_color.png", image_dilate_color);
@@ -204,9 +214,23 @@ int main(int argc, char** argv){
     for(int i=0; i<numEtiquetaFiltradas; ++i){
         imwrite(basename + "_huevo_gradiente_grises"+to_string(i)+".png", huevos_gradiente[i]);
         imwrite(basename + "_huevo_color"+to_string(i)+".png", huevos_color[i]);
+        imwrite(basename + "_huevo_bw"+to_string(i)+".png", huevos_bw[i]);
         imwrite(basename + "_huevo_distancias"+to_string(i)+".png", huevos_dist[i]);
     }
     return 0;
+}
+
+void colorearHuevo (Mat &bin_image, Mat &color_image, Mat &dilate_image){
+    for (int i = 0; i < bin_image.cols; i++ ){
+        for (int j = 0; j< bin_image.rows; j++){
+            if ((int)bin_image.at<uchar>(Point(i, j)) == 255 ){
+                color_image.at<Vec3b>(Point(i, j)) = dilate_image.at<Vec3b>(Point(i, j));
+            }
+            else{
+                color_image.at<Vec3b>(Point(i, j)) = {0, 0, 0};
+            }
+        }
+    }
 }
 
 void binarizar(Mat src, Mat dst){
@@ -282,42 +306,29 @@ void binarizar(Mat src, Mat dst){
                 (*itb)[1] = 0;
                 (*itb)[0] = 0;
             }
-    } // rof
-}
 
-void treshGradiente(Mat src, Mat dst){
-    int rHst[256] = { 0 }, gHst[256] = { 0 }, bHst[256] = { 0 };
-    // Fill color channel images
-    MatIterator_<Vec3b> it, end, itb, endb, itu, endu;
-    it = src.begin<Vec3b>();
-    end = src.end<Vec3b>();
-    for (; it != end; ++it) {
-        rHst[(*it)[2]]++;
-        gHst[(*it)[1]]++;
-        bHst[(*it)[0]]++;
-    } // rof
 
-    int rUmbral = 16;
-    int gUmbral = 16;
-    int bUmbral = 16;
-
-    it = src.begin<Vec3b>();
-    end = src.end<Vec3b>();
-    itb = dst.begin<Vec3b>();
-    endb = dst.end<Vec3b>();
-    for (; it != end && itb != endb; ++it, ++itb) {
-        if ( (*it)[2] > rUmbral && (*it)[1] > gUmbral && (*it)[0] > bUmbral) {
-            (*itb)[2] = 255;
-            (*itb)[1] = 255;
-            (*itb)[0] = 255;
-        }
-        else{
+        //PRUEBA
+        if (((*it)[2] < 40 && (*it)[1] > 20 && (*it)[0] > 20)) {
             (*itb)[2] = 0;
             (*itb)[1] = 0;
             (*itb)[0] = 0;
         }
-    }
+
+        if (((*it)[2] < 100 && (*it)[1] > 80 && (*it)[0] > 80)) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+        if (((*it)[2] < 150 && (*it)[1] > 130 && (*it)[0] > 130)) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+    } // rof
 }
+
 
 void segmentar(Mat src, Mat dst){
     int rHst[256] = { 0 }, gHst[256] = { 0 }, bHst[256] = { 0 };
@@ -391,10 +402,31 @@ void segmentar(Mat src, Mat dst){
             (*itb)[1] = 0;
             (*itb)[0] = 0;
         }
+
+
+        //PRUEBA:
+        if (((*it)[2] < 40 && (*it)[1] > 20 && (*it)[0] > 20)) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+        if (((*it)[2] < 100 && (*it)[1] > 80 && (*it)[0] > 80)) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
+        if (((*it)[2] < 150 && (*it)[1] > 130 && (*it)[0] > 130)) {
+            (*itb)[2] = 0;
+            (*itb)[1] = 0;
+            (*itb)[0] = 0;
+        }
+
     } // rof
 }
 
-int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta){
+int etiquetado(Mat &image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta){
     int numEtiqueta=0;
     queue<Point> cola;
     int valorPixel;
@@ -433,7 +465,7 @@ int etiquetado(Mat image, Mat &etiquetas, vector<int> &pixelesPorEtiqueta){
     return numEtiqueta;
 }
 
-int filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada){
+int filtroTamano(Mat &image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam, Mat &imagenFiltradaTamColoreada){
     int regionMasGrande = 0;
     int n=0;
     for (int i = 0; i < numEtiqueta; i++){
@@ -468,7 +500,7 @@ int filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, fl
     return n;
 }
 
-void filtroTamano(Mat image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam){
+void filtroTamano(Mat &image, vector<int> &pixelesPorEtiqueta, int numEtiqueta, float porcentaje, Mat etiquetas, Mat &imagenFiltradaTam){
     int regionMasGrande = 0;
     for (int i = 0; i < numEtiqueta; i++){
         if (pixelesPorEtiqueta[i] > regionMasGrande)
