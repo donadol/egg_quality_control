@@ -36,8 +36,8 @@ typedef itk::ImageFileWriter <InternalImageType> WriterType;
 #define K_LOW_G 142
 #define K_HIGH_B 192
 #define K_LOW_B 105
-#define K_HIGH_FORM 0.23
-#define K_LOW_FORM 0.19
+#define K_HIGH_FORM 0.21
+#define K_LOW_FORM 0.18
 #define PI 3.14159265358979323846
 #define K_INERTIA_O 6.252321976
 #define K_INERTIA_1 4.948496536
