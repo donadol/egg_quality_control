@@ -58,7 +58,7 @@ bool pixelValido(Point punto, int cols, int rows);
 Rect separarHuevos(Mat image, Mat &huevo, Point centro);
 void treshGradiente(Mat src, Mat dst);
 vector<float> promedio(Mat image, Mat imagebw);
-void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool tieneGrietas);
+void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool grietas);
 int totalPixeles(Mat image, Mat imagebw);
 float numeroForma(Mat image, int pixeles);
 void imagenOpenCVAITK (Mat &imageOCV, InternalImageType::Pointer imageITK);
@@ -582,7 +582,7 @@ bool pixelValido(Point punto, int cols, int rows){
     return (punto.x >= 0 && punto.x < cols) && (punto.y >= 0 && punto.y < rows);
 }
 
-void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool tieneGrietas){
+void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool grietas){
     if(!((prom[2]<=K_HIGH_R && prom[2]>=K_LOW_R) && (prom[1]<=K_HIGH_G && prom[1]>=K_LOW_B) && (prom[0]<=K_HIGH_B && prom[0]>=K_LOW_B))){
         cout<<"Resultado: No pasa por color"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
@@ -591,7 +591,7 @@ void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool tie
         cout<<"Resultado: No pasa por forma"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
     }
-    else if(tieneGrietas){
+    else if(grietas){
         cout<<"Resultado: No pasa porque tiene grietas"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
     }
