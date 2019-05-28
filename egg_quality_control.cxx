@@ -583,20 +583,31 @@ bool pixelValido(Point punto, int cols, int rows){
 }
 
 void clasificar(Mat &image, Rect r, vector<float> prom, float numForma, bool grietas){
+    bool pasa[3]={true, true, true};
     if(!((prom[2]<=K_HIGH_R && prom[2]>=K_LOW_R) && (prom[1]<=K_HIGH_G && prom[1]>=K_LOW_B) && (prom[0]<=K_HIGH_B && prom[0]>=K_LOW_B))){
-        cout<<"Resultado: No pasa por color"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+        cout<<"Resultado: No pasa por color"<<endl;
+        pasa[0]=false;
     }
-    else if(!(numForma<=K_HIGH_FORM && numForma >= K_LOW_FORM)){
+    else 
+        cout<<"Resultado: Pasa por color"<<endl;
+    if(!(numForma<=K_HIGH_FORM && numForma >= K_LOW_FORM)){
         cout<<"Resultado: No pasa por forma"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+        pasa[1]=false;
     }
-    else if(grietas){
+    else 
+        cout<<"Resultado: Pasa por forma"<<endl;
+    if(grietas){
         cout<<"Resultado: No pasa porque tiene grietas"<<endl;
         rectangle(image, r, Scalar(0, 0, 255),5,8,0);
+        pasa[2]=false;
     }
-    else{
-        cout<<"Resultado: Pasa todos los parametros"<<endl;
+    else
+        cout<<"Resultado: Pasa porque tiene grietas"<<endl;
+    
+    if(pasa[0]==true && pasa[1]==true && pasa[2]==true){ 
+        //cout<<"Resultado: Pasa todos los parametros"<<endl;
         rectangle(image, r, Scalar(0, 255, 0),5,8,0);
     }
 }
