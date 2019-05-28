@@ -35,8 +35,8 @@ typedef itk::ImageFileWriter <InternalImageType> WriterType;
 #define K_HIGH_G 215
 #define K_LOW_G 142
 #define K_HIGH_B 192
-#define K_LOW_B 105
-#define K_HIGH_FORM 0.21
+#define K_LOW_B 115
+#define K_HIGH_FORM 0.23
 #define K_LOW_FORM 0.18
 #define PI 3.14159265358979323846
 #define K_INERTIA_O 6.252321976
@@ -738,17 +738,17 @@ bool tieneGrietas (Mat imageMat, int sizeX, int sizeY){
       cout << "inertia: " << inertia<<endl;
       if (d == 0)
           if (inertia > K_INERTIA_O)
-            return false;
+            return true;
 
       if (d == 1)
         if (inertia > K_INERTIA_1)
-            return false;
+            return true;
       if (d == 2)
         if (inertia > K_INERTIA_2)
-            return false;
+            return true;
       if (d == 3)
          if (inertia > K_INERTIA_3)
-            return false;
+            return true;
   }
-  return true;
+  return false;
 }
